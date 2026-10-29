@@ -3,16 +3,25 @@
 // ponytail: reglas simplificadas del backend real (sin límites anti-spam ni emails); no usar como backend
 import { addDays, toISODate } from "@/utils/date";
 
-const KEY = "turnos_demo_db_v1";
+const KEY = "turnos_demo_db_v2"; // cambiarla cuando cambian los datos de ejemplo, así se vuelven a cargar
 const SLOT = 30;
 export const DEMO_PASSWORD = "demo1234";
 export const DEMO_USERS = [
   { email: "admin@demo.com", label: "Administrador del local" },
   { email: "lucia@demo.com", label: "Profesional" },
-  { email: "owner@demo.com", label: "Dueño de la plataforma" },
 ];
+// En la demo publicada no existe la cuenta de dueño de la plataforma (SUPER_ADMIN): nadie puede entrar a /plataforma
 
 // ---------- datos de ejemplo ----------
+// Fotos de Unsplash (uso libre); se cargan de internet. El logo es un SVG propio
+const photo = (id, w, h) => `https://images.unsplash.com/photo-${id}?w=${w}&h=${h}&fit=crop&auto=format&q=75`;
+const avatar = (id) => photo(id, 400, 400);
+const LOGO = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <rect width="200" height="200" rx="44" fill="#1f3b4d"/>
+  <circle cx="100" cy="100" r="62" fill="none" stroke="#f1e6d6" stroke-width="3"/>
+  <text x="100" y="118" text-anchor="middle" font-family="Georgia,serif" font-size="58" font-style="italic" fill="#f1e6d6">EA</text>
+</svg>`);
+
 function seed() {
   const today = new Date();
   const day = (n) => toISODate(addDays(today, n));
@@ -28,16 +37,16 @@ function seed() {
   return {
     seq: 100,
     businesses: [{
-      id: 1, name: "Estudio Demo", slug: "demo", description: "Reservá tu turno online en segundos. Esto es una demo: probá todo sin miedo.",
-      email: "contacto@demo.com", phone: "3584000000", address: "Av. Siempre Viva 742", imageUrl: null, logoUrl: null,
+      id: 1, name: "Estudio Alma", slug: "demo", description: "Reservá tu turno online en segundos. Esto es una demo: probá todo sin miedo.",
+      email: "contacto@demo.com", phone: "3584000000", address: "Av. Siempre Viva 742",
+      imageUrl: photo("1761971975724-31001b4de0bf", 1600, 900), logoUrl: LOGO,
       openingTime: "09:00", closingTime: "19:00", closedWeekdays: [7], status: "ACTIVE",
       branches: [{ id: 1, name: "Sucursal Centro", address: "Av. Siempre Viva 742", phone: "3584000000", businessId: 1 }],
     }],
     users: [
-      { id: 1, name: "Admin Demo", email: "admin@demo.com", role: "ADMIN", specialty: "Gestión", businessId: 1, branchId: 1, photoUrl: null, active: true },
-      { id: 2, name: "Lucía Fernández", email: "lucia@demo.com", role: "EMPLOYEE", specialty: "Atención general", businessId: 1, branchId: 1, photoUrl: null, active: true },
-      { id: 3, name: "Martín Gómez", email: "martin@demo.com", role: "EMPLOYEE", specialty: "Especialista", businessId: 1, branchId: 1, photoUrl: null, active: true },
-      { id: 4, name: "Dueño de la plataforma", email: "owner@demo.com", role: "SUPER_ADMIN", businessId: null, branchId: null, photoUrl: null, active: true },
+      { id: 1, name: "Carolina Ríos", email: "admin@demo.com", role: "ADMIN", specialty: "Dirección", businessId: 1, branchId: 1, photoUrl: avatar("1573497019236-17f8177b81e8"), active: true },
+      { id: 2, name: "Lucía Fernández", email: "lucia@demo.com", role: "EMPLOYEE", specialty: "Atención general", businessId: 1, branchId: 1, photoUrl: avatar("1701096374092-bb70915fdc5c"), active: true },
+      { id: 3, name: "Martín Gómez", email: "martin@demo.com", role: "EMPLOYEE", specialty: "Especialista", businessId: 1, branchId: 1, photoUrl: avatar("1500648767791-00dcc994a43e"), active: true },
     ],
     services: [
       { id: 1, name: "Consulta inicial", description: "Primera visita y evaluación.", category: "Consultas", price: 15000, durationInMinutes: 30, active: true, businessId: 1, branchId: 1 },
@@ -152,7 +161,8 @@ const route = (method, pattern, handler) =>
   routes.push({ method, regex: new RegExp(`^${pattern.replace(/:(\w+)/g, "(?<$1>[^/]+)")}$`), handler });
 
 route("POST", "/api/v1/auth/login", (db, { body }) => {
-  const user = db.users.find((u) => u.email === body.email?.trim().toLowerCase() && u.active);
+  // SUPER_ADMIN nunca entra en la demo (por si quedó guardado en un navegador con datos viejos)
+  const user = db.users.find((u) => u.email === body.email?.trim().toLowerCase() && u.active && u.role !== "SUPER_ADMIN");
   if (!user || body.password !== DEMO_PASSWORD) fail("Credenciales inválidas");
   return { token: fakeToken(user), userId: user.id, name: user.name, email: user.email, role: user.role,
     businessId: user.businessId, branchId: user.branchId, photoUrl: user.photoUrl };
